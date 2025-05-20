@@ -52,12 +52,15 @@ const AppNavigation = observer(() => {
                 <Stack.Screen
                     name="MainTab"
                     component={BottomTabNavigator}
-                    options={{ headerShown: false }}
+                    options={{ headerShown: false, title: "Home" }}
                 />
                 <Stack.Screen
                     name="ArticleDetail"
                     component={ArticleDetailScreen}
-                    options={{ title: "Article" }}
+                    options={{ 
+                        title: "Article",
+                        headerBackTitle: "Back"
+                    }}
                 />
                 <Stack.Screen
                     name="Category"

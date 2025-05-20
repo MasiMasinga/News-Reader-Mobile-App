@@ -46,8 +46,10 @@ const formatDate = (dateString: string) => {
 const CategoryScreen = observer(() => {
     const navigation = useNavigation<CategoryScreenNavigationProp>();
     const route = useRoute<CategoryScreenRouteProp>();
+    
     const { category } = route.params;
     const { darkMode } = settingsStore;
+
     const queryClient = useQueryClient();
 
     const {
