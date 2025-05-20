@@ -114,7 +114,6 @@ const ArticleDetailScreen = observer(() => {
         try {
             await Linking.openURL(article.url);
         } catch (error) {
-            console.error("Error opening URL:", error);
             Alert.alert(
                 "Error",
                 "Could not open the URL. The link may be invalid."
