@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { View, Text, ScrollView, Alert } from "react-native";
 
 // MobX
@@ -16,16 +15,6 @@ import SettingItem from "./components/SettingItem";
 
 const SettingsScreen = observer(() => {
     const { darkMode, offlineReading } = settingsStore;
-    const [isLoading, setIsLoading] = useState(true);
-
-    // Simulate loading
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setIsLoading(false);
-        }, 300);
-
-        return () => clearTimeout(timer);
-    }, []);
 
     const handleDarkModeToggle = (value: boolean) => {
         settingsStore.setDarkMode(value);
@@ -63,14 +52,6 @@ const SettingsScreen = observer(() => {
             [{ text: "OK" }]
         );
     };
-
-    if (isLoading) {
-        return (
-            <Container>
-                <View className="flex-1" />
-            </Container>
-        );
-    }
 
     return (
         <Container>
