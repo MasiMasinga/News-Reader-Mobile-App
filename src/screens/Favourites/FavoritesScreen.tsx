@@ -24,7 +24,6 @@ import { newsStore } from "../../stores/NewsStore";
 import { settingsStore } from "../../stores/SettingsStore";
 
 // React Query
-import NewsService from "../../services/news.service";
 import { useFavoriteArticles } from "../../services/news.hooks";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -41,14 +40,14 @@ type FavoritesScreenNavigationProp = CompositeNavigationProp<
 const FavoritesScreen = observer(() => {
     const navigation = useNavigation<FavoritesScreenNavigationProp>();
     const { darkMode } = settingsStore;
-    
+
     const queryClient = useQueryClient();
-    
-    const { 
-        data: favoriteArticles = [], 
+
+    const {
+        data: favoriteArticles = [],
         isLoading,
         error,
-        refetch 
+        refetch,
     } = useFavoriteArticles();
 
     useFocusEffect(
@@ -58,11 +57,15 @@ const FavoritesScreen = observer(() => {
     );
 
     const handleArticlePress = (articleId: string) => {
-        queryClient.prefetchQuery({
-            queryKey: ["article", articleId],
-            queryFn: () => NewsService.GetArticleById(articleId),
-        });
-        
+        const article = favoriteArticles.find(
+            (article) => article.id === articleId
+        );
+
+        if (article) {
+            newsStore.cacheArticle(article);
+            queryClient.setQueryData(["article", articleId], article);
+        }
+
         navigation.navigate("ArticleDetail", { articleId });
     };
 
@@ -70,7 +73,7 @@ const FavoritesScreen = observer(() => {
         const success = await newsStore.toggleFavorite(articleId);
 
         if (success) {
-            queryClient.invalidateQueries({ queryKey: ['favoriteArticles'] });
+            queryClient.invalidateQueries({ queryKey: ["favoriteArticles"] });
         } else {
             Alert.alert("Error", "Failed to remove article from favorites");
         }
@@ -121,7 +124,9 @@ const FavoritesScreen = observer(() => {
                 <FlatList
                     data={favoriteArticles}
                     renderItem={renderArticleItem}
-                    keyExtractor={(item, index) => item.url || item.title || `favorite-${index}`}
+                    keyExtractor={(item, index) =>
+                        item.url || item.title || `favorite-${index}`
+                    }
                     showsVerticalScrollIndicator={false}
                     contentContainerClassName="pb-4"
                     extraData={[darkMode, newsStore.favoriteArticleIds]}

@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, Image } from "react-native";
+import { memo } from "react";
 
 // MobX
 import { observer } from "mobx-react-lite";
@@ -18,8 +19,13 @@ const formatDate = (dateString: string) => {
     });
 };
 
-const ArticleItem = observer(
-    ({ item, onPress }: { item: Article; onPress: (id: string) => void }) => {
+interface ArticleItemProps {
+    item: Article;
+    onPress: (id: string) => void;
+}
+
+const ArticleItem = memo(
+    observer(({ item, onPress }: ArticleItemProps) => {
         const { darkMode } = settingsStore;
 
         return (
@@ -56,7 +62,7 @@ const ArticleItem = observer(
                 </View>
             </TouchableOpacity>
         );
-    }
+    })
 );
 
 export default ArticleItem;

@@ -26,16 +26,24 @@ export function useArticleById(id: string) {
     return useQuery({
         queryKey: ["article", id],
         queryFn: async () => {
-            const localArticle =
-                newsStore.articles.find((article) => article.id === id) ||
-                newsStore.favoriteArticlesData[id];
+            const localArticle = newsStore.getArticleById(id);
+            if (localArticle) {
+                newsStore.cacheArticle(localArticle);
+                return localArticle;
+            }
 
-            if (localArticle) return localArticle;
-
-            return NewsService.GetArticleById(id).then((res) => res.data);
+            const response = await NewsService.GetArticleById(id);
+            if (response.status && response.data) {
+                newsStore.cacheArticle(response.data);
+                return response.data;
+            }
+            
+            throw new Error("Article not found");
         },
-        staleTime: 30 * 60 * 1000,
+        staleTime: 5 * 60 * 1000, 
+        cacheTime: 30 * 60 * 1000,
         retry: 1,
+        retryDelay: 1000,
     });
 }
 

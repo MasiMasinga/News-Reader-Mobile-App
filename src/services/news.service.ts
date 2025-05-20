@@ -18,9 +18,14 @@ const NewsService = {
                 },
             });
 
+            const articles = response.data.articles.map((article: any) => ({
+                ...article,
+                id: article.url || `article-${Date.now()}-${Math.random()}`
+            }));
+
             return {
                 status: true,
-                data: response.data.articles,
+                data: articles,
             };
         } catch {
             return {
@@ -34,21 +39,47 @@ const NewsService = {
         id: string
     ): Promise<{ status: boolean; data: Article | null }> {
         try {
+            if (id.startsWith("http")) {
+                const response = await api.get("/everything", {
+                    params: {
+                        qInTitle: id.split("/").pop() || "",
+                        pageSize: 1,
+                        language: "en",
+                    },
+                });
+
+                if (response.data.articles.length > 0) {
+                    const article = response.data.articles[0];
+                    return { 
+                        status: true, 
+                        data: {
+                            ...article,
+                            id: article.url || id
+                        }
+                    };
+                }
+            }
+
             const response = await api.get("/everything", {
                 params: {
-                    q: id,
-                    pageSize: 10,
+                    qInTitle: id,
+                    pageSize: 1,
                     language: "en",
-                    sortBy: "relevancy",
                 },
             });
 
-            const article = id.startsWith("http")
-                ? response.data.articles.find((a: any) => a.url === id) ||
-                  response.data.articles[0]
-                : response.data.articles[0];
+            if (response.data.articles.length > 0) {
+                const article = response.data.articles[0];
+                return { 
+                    status: true, 
+                    data: {
+                        ...article,
+                        id: article.url || id
+                    }
+                };
+            }
 
-            return { status: true, data: article };
+            return { status: false, data: null };
         } catch {
             return { status: false, data: null };
         }

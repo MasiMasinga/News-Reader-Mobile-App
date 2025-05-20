@@ -70,16 +70,8 @@ const CategoryScreen = observer(() => {
         );
 
         if (article) {
-            if (!newsStore.articles.some((a) => a.id === articleId)) {
-                newsStore.articles = [...newsStore.articles, article];
-            }
-
-            queryClient.prefetchQuery({
-                queryKey: ["article", articleId],
-                queryFn: async () => {
-                    return article;
-                },
-            });
+            newsStore.cacheArticle(article);
+            queryClient.setQueryData(["article", articleId], article);
         }
 
         navigation.navigate("ArticleDetail", { articleId });

@@ -1,4 +1,5 @@
 import { View, Text, FlatList, ActivityIndicator } from "react-native";
+import { useCallback, useMemo } from "react";
 
 // React Query
 import { useQueryClient } from "@tanstack/react-query";
@@ -50,53 +51,88 @@ const HomeScreen = observer(() => {
         isLoading,
         error,
         refetch,
+        isRefetching,
     } = useTopHeadlines(
-        selectedCategory !== "all" ? selectedCategory : "general"
+        selectedCategory !== "all" ? selectedCategory : "general",
+        20,
+        1
     );
 
-    const filteredArticles = articles;
+    const filteredArticles = useMemo(() => articles, [articles]);
 
-    const handleArticlePress = (articleId: string) => {
-        const article = filteredArticles.find(
-            (article) => article.id === articleId
-        );
+    const handleArticlePress = useCallback(
+        (articleId: string) => {
+            const article = filteredArticles.find(
+                (article) => article.id === articleId
+            );
 
-        if (article) {
-            if (!newsStore.articles.some((a) => a.id === articleId)) {
-                newsStore.articles = [...newsStore.articles, article];
+            if (article) {
+                newsStore.cacheArticle(article);
+                queryClient.setQueryData(["article", articleId], article);
             }
 
-            queryClient.prefetchQuery({
-                queryKey: ["article", articleId],
-                queryFn: async () => {
-                    return article;
-                },
-            });
-        }
+            navigation.navigate("ArticleDetail", { articleId });
+        },
+        [filteredArticles, navigation, queryClient]
+    );
 
-        navigation.navigate("ArticleDetail", { articleId });
-    };
+    const handleCategoryPress = useCallback(
+        async (category: string) => {
+            try {
+                if (category !== selectedCategory) {
+                    queryClient.invalidateQueries({
+                        queryKey: ["topHeadlines"],
+                    });
+                    newsStore.setSelectedCategory(category);
+                    await refetch();
+                }
+            } catch (error) {
+                console.error("Error setting category:", error);
+            }
+        },
+        [selectedCategory, queryClient, refetch]
+    );
 
-    const handleCategoryPress = (category: string) => {
+    const handleRefresh = useCallback(async () => {
         try {
-            if (category !== selectedCategory) {
-                newsStore.selectedCategory = category;
-            }
+            queryClient.invalidateQueries({ queryKey: ["topHeadlines"] });
+            await refetch();
         } catch (error) {
-            console.error("Error setting category:", error);
+            console.error("Error refreshing:", error);
         }
-    };
+    }, [queryClient, refetch]);
 
-    const renderCategoryItem = ({ item }: { item: string }) => (
-        <CategoryItem
-            item={item}
-            isSelected={selectedCategory === item}
-            onPress={handleCategoryPress}
-        />
+    const renderCategoryItem = useCallback(
+        ({ item }: { item: string }) => (
+            <CategoryItem
+                item={item}
+                isSelected={selectedCategory === item}
+                onPress={handleCategoryPress}
+            />
+        ),
+        [selectedCategory, handleCategoryPress]
     );
 
-    const renderArticleItem = ({ item }: { item: Article }) => (
-        <ArticleItem item={item} onPress={handleArticlePress} />
+    const renderArticleItem = useCallback(
+        ({ item }: { item: Article }) => (
+            <ArticleItem item={item} onPress={handleArticlePress} />
+        ),
+        [handleArticlePress]
+    );
+
+    const keyExtractor = useCallback(
+        (item: Article, index: number) =>
+            item.url || item.title || `article-${index}`,
+        []
+    );
+
+    const getItemLayout = useCallback(
+        (data: ArrayLike<Article> | null | undefined, index: number) => ({
+            length: 200,
+            offset: 200 * index,
+            index,
+        }),
+        []
     );
 
     return (
@@ -110,15 +146,16 @@ const HomeScreen = observer(() => {
                     showsHorizontalScrollIndicator={false}
                     className="pb-2"
                     extraData={darkMode}
+                    removeClippedSubviews={true}
+                    initialNumToRender={5}
+                    maxToRenderPerBatch={5}
+                    windowSize={5}
                 />
             </View>
 
-            {isLoading ? (
+            {isLoading && !isRefetching ? (
                 <View className="flex-1 items-center justify-center">
-                    <ActivityIndicator
-                        size="large"
-                        color={darkMode ? "#60a5fa" : "#3b82f6"}
-                    />
+                    <ActivityIndicator size="large" color="#3b82f6" />
                 </View>
             ) : error ? (
                 <View className="flex-1 items-center justify-center">
@@ -130,14 +167,17 @@ const HomeScreen = observer(() => {
                 <FlatList
                     data={filteredArticles}
                     renderItem={renderArticleItem}
-                    keyExtractor={(item, index) =>
-                        item.url || item.title || `article-${index}`
-                    }
+                    keyExtractor={keyExtractor}
                     showsVerticalScrollIndicator={false}
                     contentContainerClassName="pb-4"
                     extraData={darkMode}
-                    onRefresh={refetch}
-                    refreshing={isLoading}
+                    onRefresh={handleRefresh}
+                    refreshing={isRefetching}
+                    removeClippedSubviews={true}
+                    initialNumToRender={5}
+                    maxToRenderPerBatch={5}
+                    windowSize={5}
+                    getItemLayout={getItemLayout}
                 />
             ) : (
                 <View className="flex-1 items-center justify-center">

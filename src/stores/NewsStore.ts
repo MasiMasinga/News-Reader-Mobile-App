@@ -8,7 +8,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import NewsService from "../services/news.service";
 
 // Types
-import { Article, categories } from "../common/types/news.types";
+import { Article } from "../common/types/news.types";
 
 class NewsStore {
     articles: Article[] = [];
@@ -24,9 +24,10 @@ class NewsStore {
     }
 
     setSelectedCategory(category: string) {
-        this.selectedCategory = category;
-        const boundFetch = this.fetchArticles.bind(this);
-        boundFetch();
+        if (this.selectedCategory !== category) {
+            this.selectedCategory = category;
+            this.fetchArticles();
+        }
     }
 
     async fetchArticles() {
@@ -36,18 +37,16 @@ class NewsStore {
                 this.error = null;
             });
 
-            if (!categories.includes(this.selectedCategory)) {
-                this.selectedCategory = "all";
-            }
-
+            const category = this.selectedCategory === "all" ? "general" : this.selectedCategory;
+            
             const response = await NewsService.GetTopHeadlines(
-                this.selectedCategory,
+                category,
                 20,
                 1
             );
 
             runInAction(() => {
-                this.articles = response.data;
+                response.data.forEach((article) => this.cacheArticle(article));
                 this.isLoading = false;
             });
         } catch (error) {
@@ -58,39 +57,34 @@ class NewsStore {
         }
     }
 
-    async getArticleById(id: string): Promise<Article | undefined> {
-        const localArticle =
-            this.articles.find((a) => a.id === id) ||
-            this.favoriteArticlesData[id];
-        if (localArticle || this.isLoading) return localArticle;
+    cacheArticle(article: Article) {
+        if (!article || !article.id) return;
 
         runInAction(() => {
-            this.isLoading = true;
-            this.error = null;
-        });
-
-        try {
-            const response = await NewsService.GetArticleById(id);
-            if (response.status && response.data) {
-                const fetchedArticle = response.data as Article;
-
-                runInAction(() => {
-                    if (
-                        !this.articles.some((a) => a.id === fetchedArticle.id)
-                    ) {
-                        this.articles.push(fetchedArticle);
-                    }
-                    this.isLoading = false;
-                });
-
-                return fetchedArticle;
+            const existingIndex = this.articles.findIndex(
+                (a) => a.id === article.id
+            );
+            if (existingIndex === -1) {
+                this.articles = [...this.articles, article];
+            } else {
+                this.articles[existingIndex] = article;
             }
-        } catch {
-            runInAction(() => {
-                this.error = "Failed to fetch article details";
-                this.isLoading = false;
-            });
-        }
+
+            if (this.favoriteArticleIds.includes(article.id)) {
+                this.favoriteArticlesData = {
+                    ...this.favoriteArticlesData,
+                    [article.id]: article,
+                };
+            }
+        });
+    }
+
+    getArticleById(id: string): Article | undefined {
+        const article = this.articles.find((a) => a.id === id);
+        if (article) return article;
+
+        const favoriteArticle = this.favoriteArticlesData[id];
+        if (favoriteArticle) return favoriteArticle;
 
         return undefined;
     }
